@@ -1,0 +1,54 @@
+From root Mon May 31 19:00:01 1999 -0400
+Received: (from root@localhost)
+	by doriath.saers.com (8.8.8/8.8.8) id BAA15158
+	for root; Tue, 1 Jun 1999 01:00:01 +0200 (CEST)
+	(envelope-from root)
+Date: Tue, 1 Jun 1999 01:00:01 +0200 (CEST)
+From: Charlie Root <root>
+Message-Id: <199905312300.BAA15158@doriath.saers.com>
+Subject: Daily source update
+Status:   
+
+Parsing supfile "/etc/cvsupfile"
+Looking up address of flood.ping.uio.no
+Connecting to flood.ping.uio.no
+Connected to flood.ping.uio.no
+Server software version: REL_16_0
+Negotiating
+
+From root Wed Jun  2 19:00:01 1999 -0400
+Received: (from root@localhost)
+	by doriath.saers.com (8.8.8/8.8.8) id BAA23473
+	for root; Thu, 3 Jun 1999 01:00:01 +0200 (CEST)
+	(envelope-from root)
+Date: Thu, 3 Jun 1999 01:00:01 +0200 (CEST)
+From: Charlie Root <root>
+Message-Id: <199906022300.BAA23473@doriath.saers.com>
+Subject: Daily source update
+Status:   
+
+Parsing supfile "/etc/cvsupfile"
+Looking up address of flood.ping.uio.no
+Connecting to flood.ping.uio.no
+Connected to flood.ping.uio.no
+Server software version: REL_16_0
+Negotiating
+
+From root Thu Jun  3 19:00:01 1999 -0400
+Received: (from root@localhost)
+	by doriath.saers.com (8.8.8/8.8.8) id BAA27756
+	for root; Fri, 4 Jun 1999 01:00:01 +0200 (CEST)
+	(envelope-from root)
+Date: Fri, 4 Jun 1999 01:00:01 +0200 (CEST)
+From: Charlie Root <root>
+Message-Id: <199906032300.BAA27756@doriath.saers.com>
+Subject: Daily source update
+Status:   
+
+Parsing supfile "/etc/cvsupfile"
+Looking up address of flood.ping.uio.no
+Connecting to flood.ping.uio.no
+Connected to flood.ping.uio.no
+Server software version: REL_16_0
+Negotiatingd
+

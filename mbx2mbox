@@ -1,36 +1,9 @@
 #!/usr/bin/perl
 
-$VERSION = 0.32;
+$VERSION = 0.33;
 
 use strict;
-
-# This script converts Outlook mbx's and dbx's into regular mailboxes readable
-# by programs like Pine, Eudora, and Netscape. It seems to work for the couple
-# of mailboxes I have.  Your mileage may vary.
-
-# Usage: mbx2mbox [-d|-c] <files ending in .mbx or .dbx>
-# The "fixed" mail files will have the same names, sans ".mbx".
-#
-# -c More aggressive removal of odd characters from email. (Removes
-#    non-english characters, which may be part of the Microsoft noise.)
-# -d Debug mode
-#
-# Be sure to compress your mailbox using Outlook, which should help remove
-# some of the binary data from the file. Also be aware that this script has
-# not been tested for Outlook versions since circa 1997, and may not work.
-
-# If you would like to be notified of updates, send email to me at
-# david@coppit.org. The latest version is always at
-# http://www.cs.virginia.edu/~dwc3q/code/.
-
-# Written by: David Coppit  http://coppit.org/ <david@coppit.org>
-
-# Please send me any modifications you make. Keep in mind that I'm likely to
-# turn down obscure features to avoid including everything but the kitchen
-# sink.
-
-# This code is distributed under the GNU General Public License (GPL). See
-# http://www.opensource.org/gpl-license.html and http://www.opensource.org/.
+use Date::Manip;
 
 use Getopt::Std;
 use vars qw(%opts);
@@ -41,7 +14,6 @@ BEGIN
 }
 
 use constant DEBUG => $opts{d} || 0;
-
 
 # ------------------------------------------------------------------------------
 
@@ -61,14 +33,15 @@ sub dprint
 }
 
 # ------------------------------------------------------------------------------
+
 # Set the record separator to the null character - since each message ends with
 # a null, this will slurp an entire message in one gulp.  
 
-$/="\000";
+$/ = "\000";
 
-my @mbxfiles = @ARGV;
+my @mailboxes = @ARGV;
 
-if ($#mbxfiles == -1)
+if ($#mailboxes == -1)
 {
   # Remove ./ from name
   $0 =~ s/^\.\///;
@@ -77,20 +50,20 @@ if ($#mbxfiles == -1)
   exit(0);
 }
 
-foreach my $mbxfile (@mbxfiles)
+foreach my $mailbox (@mailboxes)
 {
-  dprint "Now processing $mbxfile\n";
+  dprint "Now processing $mailbox\n";
 
-  if ($mbxfile !~ /\.[dm]bx$/i)
+  if ($mailbox !~ /\.[dm]bx$/i)
   {
-    print STDERR "ERROR: $mbxfile is not a .mbx or .dbx file.\n";
+    print STDERR "ERROR: $mailbox is not a .mbx or .dbx file.\n";
     next;
   }
 
-  my $outfile = $mbxfile;
+  my $outfile = $mailbox;
   $outfile =~ s/\.[md]bx$//i;
 
-  open INFILE, $mbxfile;
+  open INFILE, $mailbox;
   open OUTFILE, ">$outfile";
 
   # This is the main loop. It's executed once for each email
@@ -103,52 +76,86 @@ foreach my $mbxfile (@mbxfiles)
     $email = <INFILE> while !eof(INFILE) && $email !~ /(From|Received):/s;
 
     last if eof(INFILE);
-    
-    # Remember, \XXX notation is octal, not decimal!
 
-    # Clean up junk in front of From: or Received:
-    $email =~ s/^.*?(From|Received|Sender|Return-Path|Date):/$1:/s;
-
-    # Remove any weird characters that remain. 
-    $email =~ s/[\000-\010\013\015\016-\037]//sg;
-    $email =~ s/([\000-\010\013\015\016-\037\177-\377].{0,3})*$//sg;
-    $email =~ s/[\177-\377]//g if $opts{c};
-
-    # pull out the stuff that goes into the message separator.
-    $email =~ /From: (.*)\n/im;
-    my $from = $1;
-    if ($from =~ /<(.*)>/) {
-        $from = $1;
-    }
-    elsif ($from =~ /(.*) \(.*\)*/) {
-        $from = $1;
-    }
-
-    $email =~ /Date: (.*)\n/im;
-    my $date = $1;
-
-    $email =~ /Subject: (.*)\n/im;
-    my $subj = $1;
-    if (DEBUG)
-    {
-      dprint '-'x70;
-      dprint "Processed email:";
-      dprint "  $from";
-      dprint "  $date";
-      dprint "  $subj";
-    }
+    $email = FixEmail($email);
 
     # Put at least one empty line between emails.
     $email .= "\n" while $email !~ /\n\n$/s;
 
-    print OUTFILE "From $from $date\n";
     print OUTFILE "$email";
-
   }
 
   close INFILE;
   close OUTFILE;
+}
 
+#-------------------------------------------------------------------------------
+
+sub FixEmail($)
+{
+  my $email = shift;
+
+  # Remember, \XXX notation is octal, not decimal!
+
+  # Clean up junk in front of From: or Received:
+  $email =~ s/^.*?(From|Received|Sender|Return-Path|Date):/$1:/s;
+
+  # Remove any weird characters that remain in the middle of the text.
+  $email =~ s/[\000-\010\013\015\016-\037]//sg;
+  $email =~ s/([\000-\010\013\015\016-\037\177-\377].{0,3})*$//sg;
+  $email =~ s/[\177-\377]//g if $opts{c};
+
+  my $separator = ComputeSeparator($email);
+
+  $email = "$separator\n$email";
+
+  PrintDebug($email);
+
+  return $email;
+}
+
+#-------------------------------------------------------------------------------
+
+sub ComputeSeparator($)
+{
+  my $email = shift;
+
+  # pull out the stuff that goes into the message separator.
+  my ($from) = $email =~ /From: *(.*)\n/im;
+
+  if ($from =~ /<(.*)>/)
+  {
+    $from = $1;
+  }
+  elsif ($from =~ /(.*) \(.*\)*/)
+  {
+    $from = $1;
+  }
+
+  $email =~ /Date: (.*)\n/im;
+  my $tempDate = ParseDate($1);
+  my $date = UnixDate($tempDate,"%a %b %e %H:%M:%S %Y %z");
+
+  return "From $from $date";
+}
+
+#-------------------------------------------------------------------------------
+
+sub PrintDebug($)
+{
+  my $email = shift;
+
+  return unless DEBUG;
+
+  my ($from) = $email =~ /From: *(.*)\n/im;
+  my ($date) = $email =~ /Date: *(.*)\n/im;
+  my ($subj) = $email =~ /Subject: *(.*)\n/im;
+
+  dprint '-'x70;
+  dprint "Processed email:";
+  dprint "  $from";
+  dprint "  $date";
+  dprint "  $subj";
 }
 
 #-------------------------------------------------------------------------------
@@ -160,7 +167,7 @@ files.
 
 =head1 SYNOPSIS
 
-  mbx2mbox <files ending in .mbx or .dbx>
+  mbx2mbox [-dc] <files ending in .mbx or .dbx>
 
 =head1 DESCRIPTION
 
@@ -172,22 +179,37 @@ Netscape.  The .mbx and .dbx files provided as arguments to mbx2mbox are
 processed and output to files having the same name, except without the .mbx
 extension.
 
+Mailboxes from newer versions of Outlook and Outlook express may not be
+supported.  Be sure to compress your mailbox using Outlook, which should help
+remove some of the binary data from the file. Also be aware that this script
+has not been tested for Outlook versions since circa 1997, and may not work.
+
+For a survey of alternative methods of converting Outlook mailboxes, visit the
+mbx2mbox homepage at http://mbx2mbox.sourceforge.net/.
+
 =back
 
 =head1 OPTIONS AND ARGUMENTS
 
-None
+=item B<-c>
+
+Causes mbx2mbox to more agressively remove binary-like characters. (This will
+remove characters that are part of the foreign language character set.)
+
+=item B<-d>
+
+Debug mode.
 
 =head1 EXAMPLES
 
-Process saved.mbx, creating the standard mail file "saved".
+Process saved.mbx and sent.dbx, creating the standard mail files "saved" and
+"sent".
 
-  mbx2mbox saved.mbx
+  mbx2mbox saved.mbx sent.dbx
 
 =head1 AUTHOR
 
-  David Coppit, <coppit@cs.virginia.edu>,
-  http://www.cs.virginia.edu/~dwc3q/index.html
+  David Coppit, <david@coppit.org>, http://coppit.org/
 
 =head1 SEE ALSO
 
