@@ -22,7 +22,7 @@ if ($?)
 
 system "mv t/test$testNum t/results/test$testNum.out";
 
-my $diffstring = "diff t/results/test$testNum.out t/results/test$testNum.real";
+my $diffstring = "diff -a t/results/test$testNum.out t/results/test$testNum.real";
 system "$diffstring > t/results/test$testNum.diff";
 
 if ($? == 2)

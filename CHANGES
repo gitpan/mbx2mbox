@@ -1,10 +1,18 @@
+New in Version 0.34:
+- The constructed "From " line now assumes EDT instead of the machine's
+  timezone. This makes the test cases pass in timezones other than EDT.
+- Generalized search for start of new email to a NULL character followed by
+  three or more word characters or hyphens, followed by a colon. This improves
+  dbx processing quite a bit.
+- Fixed a potential infinite loop in mailbox reading.
+
 New in Version 0.33:
 - Restructured code.
 - The date on the "From" line is now correctly built from the "From:" line.
   (Thanks to Maik Nijhuis <mnijhuis@multiweb.nl> for finding the bug.)
 - mbx2mbox now uses Date::Manip to construct the date for the "From" line.
 - Added tests
-- Project moved to SourceForge (http://mbx2mbox.sourceforge.net/).
+- Project moved to SourceForge (http://mbx2mbox@sourceforge.net/).
 
 New in version 0.32:
 - Improved parsing of emails (David Hall <davidahall@compuserve.com>)

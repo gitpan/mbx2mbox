@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-$VERSION = 0.33;
+$VERSION = 0.34;
 
 use strict;
 use Date::Manip;
@@ -34,12 +34,12 @@ sub dprint
 
 # ------------------------------------------------------------------------------
 
-# Set the record separator to the null character - since each message ends with
-# a null, this will slurp an entire message in one gulp.  
-
-$/ = "\000";
-
 my @mailboxes = @ARGV;
+
+#my $start_headers = "(From|X-POP3-Rcpt|Received|Sender|Return-Path|Date)";
+my $start_headers = '([\w-]{4,})';
+
+Date_Init("TZ=EDT");
 
 if ($#mailboxes == -1)
 {
@@ -66,23 +66,80 @@ foreach my $mailbox (@mailboxes)
   open INFILE, $mailbox;
   open OUTFILE, ">$outfile";
 
+  # Remember, \XXX notation is octal, not decimal!
+
+  my $header = '';
+  my $body = '';
+
   # This is the main loop. It's executed once for each email
   while (!eof(INFILE))
   {
-    my $email = '';
-
     # There are potentially several null char's between messages, so this will
     # keep eating input until we find something that contains a header.
-    $email = <INFILE> while !eof(INFILE) && $email !~ /(From|Received):/s;
+    while (!eof(INFILE) && $header !~ /\000$start_headers:/s)
+    {
+      $header .= <INFILE>;
+    }
 
-    last if eof(INFILE);
+    if ($header =~ /\000$start_headers:/s)
+    {
+      $header =~ s/^.*?\000($start_headers:)/$1/s;
+    }
+    else
+    {
+      last;
+    }
 
-    $email = FixEmail($email);
 
-    # Put at least one empty line between emails.
-    $email .= "\n" while $email !~ /\n\n$/s;
+    # Finish reading the header
+    while (!eof(INFILE) && $header !~ /\n\n/s)
+    {
+      $header .= <INFILE>;
+      $header =~ s/\r//g;
+    }
 
-    print OUTFILE "$email";
+    ($header,$body) = $header =~ /^(.*?\n\n)(.*)$/s;
+
+    # Clean up junk in front of first header
+    $header =~ s/^.*?($start_headers:)/$1/s;
+
+    PrintDebug($header);
+
+    print OUTFILE ComputeSeparator($header),"\n$header";
+
+    # Now process each line of the body. Store the next email's header if we
+    # hit it.
+
+    my $last_printed = '';
+    $header = '';
+    while (!eof(INFILE) && $header eq '')
+    {
+      $body = <INFILE> if $body eq '';
+
+      if ($body =~ /\000$start_headers:/)
+      {
+        # We want to keep the null so that the header will match again later
+        # after the body of the current email is done processing.
+        ($body,$header) = $body =~ /^(.*?)(\000$start_headers:.*)/s;
+      }
+
+      # Remove any weird characters that remain in the middle of the text.
+      $body =~ s/[\000-\010\013\015\016-\037\204-\224]//sg;
+      $body =~ s/([\000-\010\013\015\016-\037\177-\377].{0,3})*$//sg;
+      $body =~ s/[\177-\377]//g if $opts{c};
+
+      print OUTFILE $body;
+      $last_printed = $body if $body ne '';
+
+      # Put at least one empty line between emails (except for the last one).
+      if ($header ne '')
+      {
+        print OUTFILE "\n\n" if $last_printed !~ /\n$/s;
+        print OUTFILE "\n" if $last_printed =~ /[^\n]\n$/s;
+      }
+
+      $body = '';
+    }
   }
 
   close INFILE;
@@ -91,25 +148,10 @@ foreach my $mailbox (@mailboxes)
 
 #-------------------------------------------------------------------------------
 
-sub FixEmail($)
+sub FixHeader($)
 {
   my $email = shift;
 
-  # Remember, \XXX notation is octal, not decimal!
-
-  # Clean up junk in front of From: or Received:
-  $email =~ s/^.*?(From|Received|Sender|Return-Path|Date):/$1:/s;
-
-  # Remove any weird characters that remain in the middle of the text.
-  $email =~ s/[\000-\010\013\015\016-\037]//sg;
-  $email =~ s/([\000-\010\013\015\016-\037\177-\377].{0,3})*$//sg;
-  $email =~ s/[\177-\377]//g if $opts{c};
-
-  my $separator = ComputeSeparator($email);
-
-  $email = "$separator\n$email";
-
-  PrintDebug($email);
 
   return $email;
 }
@@ -133,6 +175,7 @@ sub ComputeSeparator($)
   }
 
   $email =~ /Date: (.*)\n/im;
+
   my $tempDate = ParseDate($1);
   my $date = UnixDate($tempDate,"%a %b %e %H:%M:%S %Y %z");
 
