@@ -1,0 +1,198 @@
+#!/usr/bin/perl
+
+$VERSION = 0.32;
+
+use strict;
+
+# This script converts Outlook mbx's and dbx's into regular mailboxes readable
+# by programs like Pine, Eudora, and Netscape. It seems to work for the couple
+# of mailboxes I have.  Your mileage may vary.
+
+# Usage: mbx2mbox [-d|-c] <files ending in .mbx or .dbx>
+# The "fixed" mail files will have the same names, sans ".mbx".
+#
+# -c More aggressive removal of odd characters from email. (Removes
+#    non-english characters, which may be part of the Microsoft noise.)
+# -d Debug mode
+#
+# Be sure to compress your mailbox using Outlook, which should help remove
+# some of the binary data from the file. Also be aware that this script has
+# not been tested for Outlook versions since circa 1997, and may not work.
+
+# If you would like to be notified of updates, send email to me at
+# david@coppit.org. The latest version is always at
+# http://www.cs.virginia.edu/~dwc3q/code/.
+
+# Written by: David Coppit  http://coppit.org/ <david@coppit.org>
+
+# Please send me any modifications you make. Keep in mind that I'm likely to
+# turn down obscure features to avoid including everything but the kitchen
+# sink.
+
+# This code is distributed under the GNU General Public License (GPL). See
+# http://www.opensource.org/gpl-license.html and http://www.opensource.org/.
+
+use Getopt::Std;
+use vars qw(%opts);
+
+BEGIN
+{
+  getopt("",\%opts);
+}
+
+use constant DEBUG => $opts{d} || 0;
+
+
+# ------------------------------------------------------------------------------
+
+sub dprint
+{
+  return unless DEBUG;
+
+  my $message = join '',@_;
+
+  my @lines = split /\n/, $message;
+  foreach my $line (@lines)
+  {
+    print "DEBUG: $line\n";
+  }
+
+  return 1;
+}
+
+# ------------------------------------------------------------------------------
+# Set the record separator to the null character - since each message ends with
+# a null, this will slurp an entire message in one gulp.  
+
+$/="\000";
+
+my @mbxfiles = @ARGV;
+
+if ($#mbxfiles == -1)
+{
+  # Remove ./ from name
+  $0 =~ s/^\.\///;
+
+  print "Usage: $0 [-d] file1.mbx file2.dbx ...\n";
+  exit(0);
+}
+
+foreach my $mbxfile (@mbxfiles)
+{
+  dprint "Now processing $mbxfile\n";
+
+  if ($mbxfile !~ /\.[dm]bx$/i)
+  {
+    print STDERR "ERROR: $mbxfile is not a .mbx or .dbx file.\n";
+    next;
+  }
+
+  my $outfile = $mbxfile;
+  $outfile =~ s/\.[md]bx$//i;
+
+  open INFILE, $mbxfile;
+  open OUTFILE, ">$outfile";
+
+  # This is the main loop. It's executed once for each email
+  while (!eof(INFILE))
+  {
+    my $email = '';
+
+    # There are potentially several null char's between messages, so this will
+    # keep eating input until we find something that contains a header.
+    $email = <INFILE> while !eof(INFILE) && $email !~ /(From|Received):/s;
+
+    last if eof(INFILE);
+    
+    # Remember, \XXX notation is octal, not decimal!
+
+    # Clean up junk in front of From: or Received:
+    $email =~ s/^.*?(From|Received|Sender|Return-Path|Date):/$1:/s;
+
+    # Remove any weird characters that remain. 
+    $email =~ s/[\000-\010\013\015\016-\037]//sg;
+    $email =~ s/([\000-\010\013\015\016-\037\177-\377].{0,3})*$//sg;
+    $email =~ s/[\177-\377]//g if $opts{c};
+
+    # pull out the stuff that goes into the message separator.
+    $email =~ /From: (.*)\n/im;
+    my $from = $1;
+    if ($from =~ /<(.*)>/) {
+        $from = $1;
+    }
+    elsif ($from =~ /(.*) \(.*\)*/) {
+        $from = $1;
+    }
+
+    $email =~ /Date: (.*)\n/im;
+    my $date = $1;
+
+    $email =~ /Subject: (.*)\n/im;
+    my $subj = $1;
+    if (DEBUG)
+    {
+      dprint '-'x70;
+      dprint "Processed email:";
+      dprint "  $from";
+      dprint "  $date";
+      dprint "  $subj";
+    }
+
+    # Put at least one empty line between emails.
+    $email .= "\n" while $email !~ /\n\n$/s;
+
+    print OUTFILE "From $from $date\n";
+    print OUTFILE "$email";
+
+  }
+
+  close INFILE;
+  close OUTFILE;
+
+}
+
+#-------------------------------------------------------------------------------
+
+=head1 NAME
+
+mbx2mbox - Converts Outlook .mbx and .dbx files into standard RFC822 mail
+files.
+
+=head1 SYNOPSIS
+
+  mbx2mbox <files ending in .mbx or .dbx>
+
+=head1 DESCRIPTION
+
+=over 2
+
+I<mbx2mbox> attempts to convert Microsoft's proprietary .mbx and .dbx formats
+to the standard RFC822 mail format used by programs like Pine, Eudora, and
+Netscape.  The .mbx and .dbx files provided as arguments to mbx2mbox are
+processed and output to files having the same name, except without the .mbx
+extension.
+
+=back
+
+=head1 OPTIONS AND ARGUMENTS
+
+None
+
+=head1 EXAMPLES
+
+Process saved.mbx, creating the standard mail file "saved".
+
+  mbx2mbox saved.mbx
+
+=head1 AUTHOR
+
+  David Coppit, <coppit@cs.virginia.edu>,
+  http://www.cs.virginia.edu/~dwc3q/index.html
+
+=head1 SEE ALSO
+
+elm(1), mail(1), grep(1), perl(1), printmail(1), Mail::Internet(3)
+Crocker,  D.  H., Standard for the
+Format of Arpa Internet Text Messages, RFC822.
+
+=cut

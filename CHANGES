@@ -1,0 +1,23 @@
+New in version 0.31:
+- Linefeeds cleaned up. (By Twinkles <twinkles@one.net.au>)
+New in version 0.3:
+- Improved parsing of emails at the expense of speed for mailboxes with large
+  attachments. 
+- Added -c flag for more aggressive removal of odd characters in email bodies.
+  (Weakened default removal for more friendly handling of non-English
+  characters.) Thanks to Joerg Hau <joerg.hau@dplanet.ch>
+- Added debugging mode (-d)
+
+New in version 0.2:
+- Added .dbx support.
+
+New in version 0.11:
+- Added "Received" to header list. (Thanks to T.R. Fullhart <kayos@kayos.org>)
+- Added POD documentation
+
+New in version 0.1:
+- Fixed extra newline and dropped From: on first email.
+- Renamed to mbx2mbox from mbox2mail
+
+New in version 0.0:
+- Initial version.

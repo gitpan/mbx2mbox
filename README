@@ -1,0 +1,34 @@
+mbx2mbox
+
+mbx2mbox converts Outlook mbxes into regular mailboxes readable by programs
+like Pine, Eudora, and Netscape. It seems to work for the couple of mailboxes
+I have. Your mileage may vary.
+
+New in version 0.32:
+- Improved parsing of emails (David Hall <davidahall@compuserve.com>)
+- Header "From someone@somewhere.com" now uses sender's email address.
+  (David Hall <davidahall@compuserve.com>)
+- Quoted headers are no longer mistakenly processed.
+  (David Hall <davidahall@compuserve.com>)
+
+New in version 0.3:
+- Improved parsing of emails at the expense of speed for mailboxes with large
+  attachments. 
+- Added -c flag for more aggressive removal of odd characters in email bodies.
+  (Weakened default removal for more friendly handling of non-English
+  characters.) Thanks to <joerg.hau(at)dplanet.ch>
+- Added debugging mode (-d)
+
+See the file CHANGES for a complete change history.
+
+Written by David Coppit (david@coppit.org, http://coppit.org/)
+
+Send me email if you would like to be notified of updates.
+
+Please send me any modifications you make. (for the better, that is. :) I have
+a suite of tests that I can give you if you ask. Keep in mind that I'm likely
+to turn down obscure features to avoid including everything but the kitchen
+sink.
+
+This code is distributed under the GNU General Public License (GPL). See
+http://www.opensource.org/gpl-license.html and http://www.opensource.org/.
